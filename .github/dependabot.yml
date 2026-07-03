@@ -5,6 +5,12 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
+    # Major bumps (notably the egui/eframe/egui_extras stack, which must move in
+    # lockstep) require a coordinated manual migration, so keep them out of the
+    # automated flow. Dependabot handles minor/patch updates, grouped.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
       cargo-minor-patch:
         update-types: ["minor", "patch"]
