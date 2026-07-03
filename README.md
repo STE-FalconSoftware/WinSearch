@@ -135,7 +135,10 @@ Filters combine, so `ext:log size:>10mb dm:today path:service` is one query.
    timestamps together, no directory traversal and no per-file `stat`. (If the
    raw parse ever fails, it falls back automatically to `FSCTL_ENUM_USN_DATA`
    for names plus a parallel metadata fill. Force the fallback with the
-   `WS_NO_MFT=1` environment variable.)
+   `WS_NO_MFT=1` environment variable.) A small fraction of files describe their
+   data through an NTFS *attribute list* that lives outside their base record;
+   the raw parser can't size those, so the index backfills just them from the
+   Win32 API — a targeted repair, not a full re-scan.
 2. **In-memory index**: names live in one contiguous byte arena; entries are a
    flat array; full paths are reconstructed on demand only for displayed rows.
 3. **Parallel search**: rayon splits the entry array across all cores and each

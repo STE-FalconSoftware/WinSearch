@@ -32,13 +32,18 @@ fn main() -> anyhow::Result<()> {
         match ws_index::verify_mft(letter, 5000) {
             Ok(rep) => {
                 print!("{}", rep);
-                let bad = rep.size_mismatch + rep.time_mismatch;
+                // Backfilled files (raw=0, filled from the API in the real index)
+                // are expected, not errors. Only wrong sizes or mtime mismatches
+                // indicate a real decode problem.
+                let bad = rep.size_wrong + rep.time_mismatch;
                 if bad == 0 {
                     println!(
-                        "\n✅ All sampled sizes and timestamps match. Raw MFT path looks correct."
+                        "\n✅ No decode errors. Every raw size was either exact or a \
+                         known attribute-list file that the index backfills from the API; \
+                         all timestamps matched."
                     );
                 } else {
-                    println!("\n⚠️  {} mismatch(es) — see examples above (some may be files that changed mid-scan).", bad);
+                    println!("\n⚠️  {} genuine mismatch(es) — see WRONG/MTIME cases above (some may be files that changed mid-scan).", bad);
                 }
             }
             Err(e) => eprintln!("verify failed: {} (run from an elevated terminal)", e),

@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-07-03
+
+### Fixed
+
+- Sizes now correct for files whose `$DATA` is described by an NTFS attribute
+  list (common for WinSxS/system files) — the raw `$MFT` parser reads these as
+  size 0 because the data lives outside the base record. The index now backfills
+  just those files from the Win32 API (a targeted repair, not a full re-scan),
+  so search results and the size column are accurate. Timestamps were already
+  correct. Surfaced by `wsearch --verify-mft`, which now distinguishes a
+  harmless backfill from a genuine decode error.
+
 ## [0.1.0] - 2026-07-03
 
 ### Added
@@ -35,4 +47,5 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - `--root` / `WS_ROOT` folder mode for running without administrator rights.
   - Elevation manifest (MFT access requires administrator).
 
+[0.1.1]: https://github.com/STE-FalconSoftware/WinSearch/releases/tag/v0.1.1
 [0.1.0]: https://github.com/STE-FalconSoftware/WinSearch/releases/tag/v0.1.0

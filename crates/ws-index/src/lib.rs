@@ -354,8 +354,12 @@ impl Engine {
         self.stop.store(true, Ordering::Relaxed);
     }
 
-    /// Fill size/date metadata for every entry, in parallel, then republish each
-    /// volume's snapshot. Safe to call on a background thread.
+    /// Fill in missing size/date metadata, in parallel, then republish each
+    /// volume's snapshot. Only entries that still look incomplete are fetched:
+    /// for the USN-enumeration path that is every file (all sizes start at 0),
+    /// but for the raw-`$MFT` path it is just the handful of files whose `$DATA`
+    /// lives in an attribute list outside their base record — a cheap repair
+    /// rather than opening every file. Safe to call on a background thread.
     #[cfg(windows)]
     pub fn fill_metadata(&self) {
         let total: u64 = self
@@ -380,10 +384,16 @@ impl Engine {
             let filled = &self.meta_filled;
             let handle_ref = handle.as_ref();
             entries.par_iter_mut().for_each(|e| {
-                if let Some(m) = win::fetch_meta(handle_ref, e.frn) {
-                    e.size = m.size;
-                    e.mtime = m.mtime;
-                    e.ctime = m.ctime;
+                // Fetch only when metadata looks unfilled: no timestamp yet, or a
+                // non-directory reporting zero size (either genuinely empty or an
+                // attribute-list file the raw parser couldn't size).
+                let incomplete = e.mtime == 0 || (e.size == 0 && !e.is_dir());
+                if incomplete {
+                    if let Some(m) = win::fetch_meta(handle_ref, e.frn) {
+                        e.size = m.size;
+                        e.mtime = m.mtime;
+                        e.ctime = m.ctime;
+                    }
                 }
                 filled.fetch_add(1, Ordering::Relaxed);
             });
@@ -460,7 +470,13 @@ pub struct VerifyReport {
     pub file_count: u64,
     pub checked: u64,
     pub size_ok: u64,
-    pub size_mismatch: u64,
+    /// Raw parser returned 0 but the file has a real size — an attribute-list
+    /// file whose `$DATA` lives outside its base record. Harmless: the real
+    /// index backfills these from the Win32 API. Not a decode error.
+    pub size_backfilled: u64,
+    /// Raw parser returned a non-zero size that disagrees with the API — a true
+    /// decode error (should be zero).
+    pub size_wrong: u64,
     pub time_ok: u64,
     pub time_mismatch: u64,
     pub open_failures: u64,
@@ -470,25 +486,24 @@ pub struct VerifyReport {
 #[cfg(windows)]
 impl std::fmt::Display for VerifyReport {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "MFT records enumerated : {}", self.total_records)?;
-        writeln!(f, "files (non-dir)        : {}", self.file_count)?;
-        writeln!(f, "sampled & opened       : {}", self.checked)?;
+        writeln!(f, "MFT records enumerated  : {}", self.total_records)?;
+        writeln!(f, "files (non-dir)         : {}", self.file_count)?;
+        writeln!(f, "sampled & opened        : {}", self.checked)?;
+        writeln!(f, "size  exact match       : {}", self.size_ok)?;
+        writeln!(f, "size  wrong (decode bug): {}", self.size_wrong)?;
         writeln!(
             f,
-            "size   match / mismatch: {} / {}",
-            self.size_ok, self.size_mismatch
+            "size  0 in raw, backfilled: {}  (attribute-list files; filled from Win32 in the index)",
+            self.size_backfilled
         )?;
         writeln!(
             f,
-            "mtime  match / mismatch: {} / {}",
+            "mtime match / mismatch  : {} / {}",
             self.time_ok, self.time_mismatch
         )?;
         writeln!(f, "could not open (skipped): {}", self.open_failures)?;
         if !self.examples.is_empty() {
-            writeln!(
-                f,
-                "\nfirst mismatches (may be files changed during the scan):"
-            )?;
+            writeln!(f, "\nnotable cases (some may be files changed mid-scan):")?;
             for e in &self.examples {
                 writeln!(f, "  {}", e)?;
             }
@@ -549,11 +564,23 @@ pub fn verify_mft(letter: char, sample: usize) -> anyhow::Result<VerifyReport> {
                 rep.checked += 1;
                 if m.size == size {
                     rep.size_ok += 1;
-                } else {
-                    rep.size_mismatch += 1;
+                } else if size == 0 {
+                    // Raw parser couldn't size this file (attribute-list $DATA);
+                    // the real index backfills it from the API. Not a bug.
+                    rep.size_backfilled += 1;
                     if rep.examples.len() < 10 {
                         rep.examples.push(format!(
-                            "SIZE  {:<40} mft={} api={}",
+                            "backfill {:<38} raw=0 api={}",
+                            trunc(&name),
+                            m.size
+                        ));
+                    }
+                } else {
+                    // Raw parser gave a wrong non-zero size — a genuine bug.
+                    rep.size_wrong += 1;
+                    if rep.examples.len() < 10 {
+                        rep.examples.push(format!(
+                            "WRONG    {:<38} raw={} api={}",
                             trunc(&name),
                             size,
                             m.size

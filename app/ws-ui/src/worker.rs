@@ -146,16 +146,14 @@ pub fn spawn_indexer(shared: Arc<Shared>, ctx: egui::Context, source: Source) {
         );
         ctx.request_repaint();
 
-        // Fill size/date metadata in the background (NTFS only; the walker fills
-        // inline). Republishes snapshots when done.
+        // On a fresh (non-cached) build, fill in any missing size/date metadata
+        // in the background. For the raw-$MFT path this only touches the few
+        // attribute-list files it couldn't size; for the USN fallback it fills
+        // everything. A warm cache is already complete, so it's skipped.
         #[cfg(windows)]
         {
-            let need_meta = engine
-                .volumes
-                .iter()
-                .any(|v| v.is_ntfs && !v.snapshot.load().meta_ready);
-            if need_meta {
-                *shared.status.lock() = "Filling size/date metadata…".into();
+            if !from_cache {
+                *shared.status.lock() = "Refining size/date metadata…".into();
                 ctx.request_repaint();
                 engine.fill_metadata();
             }
