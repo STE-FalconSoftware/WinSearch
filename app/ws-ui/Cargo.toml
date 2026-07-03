@@ -12,7 +12,7 @@ path = "src/main.rs"
 [dependencies]
 ws-index = { path = "../../crates/ws-index" }
 ws-query = { path = "../../crates/ws-query" }
-eframe = "0.29"
+eframe = "0.35"
 egui = "0.29"
 egui_extras = "0.29"
 open = "5"
