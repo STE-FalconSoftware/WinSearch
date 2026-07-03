@@ -1,0 +1,24 @@
+[package]
+name = "ws-index"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+rayon.workspace = true
+memchr.workspace = true
+rustc-hash.workspace = true
+parking_lot.workspace = true
+arc-swap.workspace = true
+anyhow.workspace = true
+jwalk.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = [
+    "Win32_Foundation",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Ioctl",
+    "Win32_System_IO",
+    "Win32_Security",
+] }

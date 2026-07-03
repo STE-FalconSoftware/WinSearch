@@ -1,0 +1,11 @@
+[package]
+name = "ws-query"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+ws-index = { path = "../ws-index" }
+rayon.workspace = true
+regex = "1.10"

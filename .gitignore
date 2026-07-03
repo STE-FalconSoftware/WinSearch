@@ -1,0 +1,4 @@
+/target
+*.pdb
+# Cargo.lock is committed: this workspace produces applications, so we want
+# reproducible builds.

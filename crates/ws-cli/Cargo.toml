@@ -1,0 +1,15 @@
+[package]
+name = "ws-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "wsearch"
+path = "src/main.rs"
+
+[dependencies]
+ws-index = { path = "../ws-index" }
+ws-query = { path = "../ws-query" }
+anyhow.workspace = true
