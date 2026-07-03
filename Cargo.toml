@@ -13,8 +13,8 @@ edition = "2021"
 authors = ["STE Falcon Software"]
 license = "MIT"
 description = "Lightning-fast NTFS file search for Windows — reads the MFT directly and keeps the index in RAM."
-repository = "https://github.com/ste-falcon-software/winsearch"
-homepage = "https://github.com/ste-falcon-software/winsearch"
+repository = "https://github.com/STE-FalconSoftware/WinSearch"
+homepage = "https://github.com/STE-FalconSoftware/WinSearch"
 keywords = ["search", "ntfs", "mft", "filesystem", "windows"]
 categories = ["filesystem", "command-line-utilities"]
 
