@@ -1,0 +1,53 @@
+name: Bug report
+description: Report something that isn't working correctly
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Search for '...'
+        2. Click '...'
+        3. See error
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: WinSearch version / commit
+      placeholder: "v0.1.0 or a commit SHA"
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: How were you running it?
+      options:
+        - GUI, elevated (whole drive)
+        - GUI, --root folder mode (no admin)
+        - CLI (wsearch)
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: Windows version, drive filesystem (NTFS/exFAT), and anything relevant.
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Console output / status bar text
+      description: Any error text shown in the status bar or console.
+      render: shell
+    validations:
+      required: false

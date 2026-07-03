@@ -1,5 +1,11 @@
 # WinSearch
 
+[![CI](https://github.com/STE-FalconSoftware/WinSearch/actions/workflows/ci.yml/badge.svg)](https://github.com/STE-FalconSoftware/WinSearch/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/STE-FalconSoftware/WinSearch?sort=semver)](https://github.com/STE-FalconSoftware/WinSearch/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+![Platform: Windows](https://img.shields.io/badge/platform-Windows-0078D6)
+![Built with Rust](https://img.shields.io/badge/built%20with-Rust-DEA584?logo=rust&logoColor=white)
+
 A lightning-fast file search for Windows, built from scratch in Rust. It reads
 the NTFS Master File Table directly and keeps the whole index in RAM, so it can
 index millions of files in seconds and answer as-you-type queries in well under
@@ -38,6 +44,12 @@ crates/ws-query   query parser + compiler + parallel search
 crates/ws-cli     command-line front end (wsearch.exe)
 app/ws-ui         native GUI (WinSearch.exe, egui)
 ```
+
+## Download
+
+Prebuilt Windows x64 binaries are attached to each
+[release](https://github.com/STE-FalconSoftware/WinSearch/releases). Grab the
+latest `WinSearch-vX.Y.Z-windows-x64.zip`, unzip, and run `WinSearch.exe`.
 
 ## Build
 
