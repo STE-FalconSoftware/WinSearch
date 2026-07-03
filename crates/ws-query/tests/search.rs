@@ -6,9 +6,10 @@ use std::fs;
 use std::path::PathBuf;
 use ws_index::Engine;
 
-fn scratch() -> PathBuf {
+fn scratch(tag: &str) -> PathBuf {
+    // Unique per test so parallel tests don't clobber each other's tree.
     let mut d = std::env::temp_dir();
-    d.push(format!("ws_test_{}", std::process::id()));
+    d.push(format!("ws_test_{}_{}", std::process::id(), tag));
     let _ = fs::remove_dir_all(&d);
     fs::create_dir_all(d.join("docs")).unwrap();
     fs::create_dir_all(d.join("src")).unwrap();
@@ -29,7 +30,7 @@ fn count(engine: &std::sync::Arc<Engine>, q: &str) -> usize {
 
 #[test]
 fn full_pipeline() {
-    let dir = scratch();
+    let dir = scratch("full");
     let engine = Engine::build_from_dir(dir.to_str().unwrap()).unwrap();
 
     // Substring on name (case-insensitive), ANDed terms.
@@ -69,13 +70,20 @@ fn full_pipeline() {
     let path = snap.full_path(hits[0].idx);
     assert!(path.ends_with("main.rs"), "got {}", path);
     assert!(path.contains("src"), "got {}", path);
+    // The reconstructed path must be real (guards against the root-name being
+    // duplicated into every child path).
+    assert!(
+        std::path::Path::new(&path).exists(),
+        "reconstructed path does not exist: {}",
+        path
+    );
 
     let _ = fs::remove_dir_all(&dir);
 }
 
 #[test]
 fn empty_query_matches_all() {
-    let dir = scratch();
+    let dir = scratch("empty");
     let engine = Engine::build_from_dir(dir.to_str().unwrap()).unwrap();
     let total = engine.total_files() as usize;
     // An empty query is treated as "match everything" by the CLI/UI layer;

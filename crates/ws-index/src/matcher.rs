@@ -67,9 +67,7 @@ pub fn glob_ci(hay: &[u8], pat: &[u8]) -> bool {
     let (mut h, mut p) = (0usize, 0usize);
     let (mut star, mut mark) = (usize::MAX, 0usize);
     while h < hay.len() {
-        if p < pat.len()
-            && (pat[p] == b'?' || pat[p].eq_ignore_ascii_case(&hay[h]))
-        {
+        if p < pat.len() && (pat[p] == b'?' || pat[p].eq_ignore_ascii_case(&hay[h])) {
             h += 1;
             p += 1;
         } else if p < pat.len() && pat[p] == b'*' {

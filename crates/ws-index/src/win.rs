@@ -556,9 +556,10 @@ pub fn enumerate_mft_raw<F: FnMut(RecordFull)>(vol: &Handle, mut cb: F) -> Resul
                 let start = r * geo.record_size;
                 let rec = &mut buf[start..start + geo.record_size];
                 if record_number >= 16
-                    && parse_file_record(rec, &geo, record_number, &mut name_buf, &mut cb) {
-                        emitted += 1;
-                    }
+                    && parse_file_record(rec, &geo, record_number, &mut name_buf, &mut cb)
+                {
+                    emitted += 1;
+                }
                 record_number += 1;
             }
             done += this as u64;

@@ -7,6 +7,17 @@ index millions of files in seconds and answer as-you-type queries in well under
 
 See [PLAN.md](PLAN.md) for the full technical design.
 
+## Screenshots
+
+Instant search across the whole drive, filtering as you type:
+
+![Search results](docs/search.png)
+
+Click any result to preview and edit it, with syntax highlighting and a save
+guard:
+
+![Preview and edit pane](docs/editor.png)
+
 ## What's built
 
 | Milestone | Status | What it delivers |
@@ -73,13 +84,19 @@ a notice instead of loading. Double-click still opens a file in its default app.
 the raw fast path is decoding correctly on your machine. (A handful of mismatches
 usually just means those files changed during the scan.)
 
+**Keyboard** — ↑/↓ move the selection, **Enter** opens the highlighted file in
+the preview pane, **Esc** closes the pane, **Ctrl+S** saves.
+
 ### No admin? Index a single folder
 
-Both the CLI and engine support indexing one directory subtree with no
+The CLI, the GUI, and the engine can all index one directory subtree with no
 privileges (a parallel directory walk). Handy for testing or scoped searches:
 
 ```powershell
 .\target\release\wsearch.exe --root C:\Users\me\projects "ext:rs main"
+
+# The GUI takes the same flag (or the WS_ROOT environment variable):
+.\target\release\WinSearch.exe --root C:\Users\me\projects
 ```
 
 ## Query syntax

@@ -81,10 +81,48 @@ impl Shared {
 /// never build millions of strings; the true count beyond the cap is flagged.
 const DISPLAY_LIMIT: usize = 50_000;
 
+/// Where the index comes from: the system's NTFS volumes (needs admin) or a
+/// single directory subtree (no privileges required).
+pub enum Source {
+    Volumes(Vec<char>),
+    Dir(String),
+}
+
 /// Spawn the indexer: build (or load) the index, publish it, fill metadata, then
 /// keep tailing the USN journal for live updates.
-pub fn spawn_indexer(shared: Arc<Shared>, ctx: egui::Context, letters: Vec<char>) {
+pub fn spawn_indexer(shared: Arc<Shared>, ctx: egui::Context, source: Source) {
     std::thread::spawn(move || {
+        // Folder mode: index one subtree via the walker; no journal, metadata is
+        // filled inline so we're immediately ready.
+        let letters = match source {
+            Source::Dir(root) => {
+                *shared.status.lock() = format!("Indexing folder {root}…");
+                ctx.request_repaint();
+                let t0 = std::time::Instant::now();
+                match Engine::build_from_dir(&root) {
+                    Ok(engine) => {
+                        let secs = t0.elapsed().as_secs_f64();
+                        *shared.status.lock() = format!(
+                            "{} files indexed in {:.2}s · {}",
+                            engine.total_files(),
+                            secs,
+                            root
+                        );
+                        *shared.engine.lock() = Some(engine);
+                        shared.indexing.store(false, Ordering::Relaxed);
+                        shared.meta_done.store(true, Ordering::Relaxed);
+                    }
+                    Err(e) => {
+                        *shared.status.lock() = format!("Failed to index {root}: {e}");
+                        shared.indexing.store(false, Ordering::Relaxed);
+                    }
+                }
+                ctx.request_repaint();
+                return;
+            }
+            Source::Volumes(letters) => letters,
+        };
+
         *shared.status.lock() = format!("Reading MFT for {:?}…", letters);
         ctx.request_repaint();
 

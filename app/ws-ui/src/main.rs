@@ -13,7 +13,18 @@ use std::time::Duration;
 use worker::{Req, Results, Shared, SortKey};
 
 fn main() -> eframe::Result<()> {
-    let letters = discover_letters();
+    // Optional folder mode: `--root <path>` or WS_ROOT env indexes one directory
+    // subtree without administrator rights (same idea as the CLI's --root).
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let root = args
+        .iter()
+        .position(|a| a == "--root")
+        .and_then(|i| args.get(i + 1).cloned())
+        .or_else(|| std::env::var("WS_ROOT").ok());
+    let mut source = Some(match root {
+        Some(dir) => worker::Source::Dir(dir),
+        None => worker::Source::Volumes(discover_letters()),
+    });
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
@@ -29,7 +40,7 @@ fn main() -> eframe::Result<()> {
         Box::new(move |cc| {
             let shared = Shared::new();
             let ctx = cc.egui_ctx.clone();
-            worker::spawn_indexer(shared.clone(), ctx.clone(), letters.clone());
+            worker::spawn_indexer(shared.clone(), ctx.clone(), source.take().unwrap());
             let (tx, rx) = std::sync::mpsc::channel::<Req>();
             worker::spawn_search(shared.clone(), ctx, rx);
             // Tray + global hotkey are created on the event-loop thread (here).
@@ -169,9 +180,46 @@ impl eframe::App for App {
         self.was_indexing = indexing;
         self.was_meta_done = meta_done;
         if (self.shared.dirty.swap(false, Ordering::Relaxed) || became_ready || meta_became_ready)
-            && !self.query.is_empty() {
-                self.submit();
+            && !self.query.is_empty()
+        {
+            self.submit();
+        }
+
+        // Keyboard navigation over the result list.
+        let (down, up, enter, esc) = ctx.input(|i| {
+            (
+                i.key_pressed(egui::Key::ArrowDown),
+                i.key_pressed(egui::Key::ArrowUp),
+                i.key_pressed(egui::Key::Enter),
+                i.key_pressed(egui::Key::Escape),
+            )
+        });
+        let mut scroll_to: Option<usize> = None;
+        let row_count = self.shared.results.lock().rows.len();
+        if row_count > 0 && (down || up) {
+            let next = match (self.selected, down) {
+                (None, _) => 0,
+                (Some(s), true) => (s + 1).min(row_count - 1),
+                (Some(s), false) => s.saturating_sub(1),
+            };
+            self.selected = Some(next);
+            scroll_to = Some(next);
+        }
+        if enter {
+            if let Some(idx) = self.selected {
+                if let Some((path, name)) = self.row_path_name(idx) {
+                    self.open_preview(&path, &name);
+                }
             }
+        }
+        if esc && (self.editor.is_some() || self.preview_msg.is_some()) {
+            if self.editor.as_ref().map(|e| e.dirty()).unwrap_or(false) {
+                self.confirm_close = true;
+            } else {
+                self.editor = None;
+                self.preview_msg = None;
+            }
+        }
 
         egui::TopBottomPanel::top("search").show(ctx, |ui| {
             ui.add_space(6.0);
@@ -257,7 +305,15 @@ impl eframe::App for App {
                     ui.weak("Size/date filters activate once background indexing of sizes and dates finishes.");
                 });
             }
-            action = draw_table(ui, &res, self.sort, self.ascending, self.selected, &self.query);
+            action = draw_table(
+                ui,
+                &res,
+                self.sort,
+                self.ascending,
+                self.selected,
+                scroll_to,
+                &self.query,
+            );
         });
 
         // Modal: discard-unsaved confirmation for switching or closing.
@@ -370,12 +426,14 @@ struct TableAction {
 }
 
 /// Draw the results table and report any header click, row selection, or open.
+#[allow(clippy::too_many_arguments)]
 fn draw_table(
     ui: &mut egui::Ui,
     res: &Results,
     sort: SortKey,
     ascending: bool,
     selected: Option<usize>,
+    scroll_to: Option<usize>,
     query: &str,
 ) -> TableAction {
     use egui_extras::{Column, TableBuilder};
@@ -406,14 +464,18 @@ fn draw_table(
         .clicked()
     };
 
-    TableBuilder::new(ui)
+    let mut table = TableBuilder::new(ui)
         .striped(true)
         .resizable(true)
         .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
         .column(Column::auto().at_least(160.0).clip(true))
         .column(Column::remainder().at_least(200.0).clip(true))
         .column(Column::auto().at_least(80.0))
-        .column(Column::auto().at_least(140.0))
+        .column(Column::auto().at_least(140.0));
+    if let Some(row) = scroll_to {
+        table = table.scroll_to_row(row, Some(egui::Align::Center));
+    }
+    table
         .header(22.0, |mut h| {
             h.col(|ui| {
                 if header(ui, "Name", SortKey::Name) {

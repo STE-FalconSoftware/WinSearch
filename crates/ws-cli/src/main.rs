@@ -51,7 +51,10 @@ fn main() -> anyhow::Result<()> {
         .position(|a| a == "--root")
         .and_then(|i| args.get(i + 1).cloned());
     let query: Vec<String> = args
-        .iter().filter(|&a| !a.starts_with("--")).filter(|&a| Some(a) != root.as_ref()).cloned()
+        .iter()
+        .filter(|&a| !a.starts_with("--"))
+        .filter(|&a| Some(a) != root.as_ref())
+        .cloned()
         .collect();
 
     let t0 = Instant::now();

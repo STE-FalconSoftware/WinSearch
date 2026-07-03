@@ -31,12 +31,23 @@ pub fn build_walk_snapshot(letter: char) -> anyhow::Result<Snapshot> {
 /// Build a snapshot by walking an arbitrary root directory. Used for the drive
 /// fallback, for the "index this folder only" mode, and for tests.
 pub fn build_walk_snapshot_at(letter: char, root: &str) -> anyhow::Result<Snapshot> {
-    let root = root.to_string();
+    // Normalize the root to backslashes with no trailing separator. A bare drive
+    // ("C:") keeps that form as the lookup key but is walked as "C:\".
+    let mut norm = root.replace('/', "\\");
+    while norm.ends_with('\\') {
+        norm.pop();
+    }
+    let walk_root = if norm.ends_with(':') {
+        format!("{norm}\\")
+    } else {
+        norm.clone()
+    };
+
     let mut names: Vec<u8> = Vec::with_capacity(8 << 20);
     let mut entries: Vec<Entry> = Vec::with_capacity(1 << 16);
     let mut path_to_frn: FxHashMap<String, u64> = FxHashMap::default();
 
-    // Root entry.
+    // Synthetic root entry (empty name; full_path substitutes root_prefix).
     entries.push(Entry {
         frn: ROOT_FRN,
         parent_frn: ROOT_FRN,
@@ -47,15 +58,27 @@ pub fn build_walk_snapshot_at(letter: char, root: &str) -> anyhow::Result<Snapsh
         mtime: 0,
         ctime: 0,
     });
-    path_to_frn.insert(trim_sep(&root).to_string(), ROOT_FRN);
+    path_to_frn.insert(norm.clone(), ROOT_FRN);
 
     let mut next_frn: u64 = 100;
-    for entry in jwalk::WalkDir::new(&root).skip_hidden(false).sort(false) {
+    for entry in jwalk::WalkDir::new(&walk_root)
+        .skip_hidden(false)
+        .sort(false)
+    {
         let entry = match entry {
             Ok(e) => e,
             Err(_) => continue,
         };
         let path = entry.path();
+        let path_str = match path.to_str() {
+            Some(s) => s,
+            None => continue,
+        };
+        // Skip the root directory itself; the synthetic root stands in for it,
+        // otherwise its name would be duplicated into every child's path.
+        if trim_sep(path_str) == norm {
+            continue;
+        }
         let name = match path.file_name().and_then(|n| n.to_str()) {
             Some(n) => n,
             None => continue,
@@ -79,9 +102,7 @@ pub fn build_walk_snapshot_at(letter: char, root: &str) -> anyhow::Result<Snapsh
         let frn = next_frn;
         next_frn += 1;
         if is_dir {
-            if let Some(p) = path.to_str() {
-                path_to_frn.insert(trim_sep(p).to_string(), frn);
-            }
+            path_to_frn.insert(trim_sep(path_str).to_string(), frn);
         }
         let off = names.len() as u32;
         names.extend_from_slice(name.as_bytes());
@@ -102,12 +123,8 @@ pub fn build_walk_snapshot_at(letter: char, root: &str) -> anyhow::Result<Snapsh
         frn_index.insert(e.frn, i as u32);
     }
 
-    // Normalize the root into a prefix ending in a single backslash.
-    let mut root_prefix = root.replace('/', "\\");
-    while root_prefix.ends_with('\\') {
-        root_prefix.pop();
-    }
-    root_prefix.push('\\');
+    // Paths reconstruct as `{root_prefix}{relative}`, e.g. "C:\WinSearch\" or "C:\".
+    let root_prefix = format!("{norm}\\");
 
     Ok(Snapshot {
         volume_letter: letter,
