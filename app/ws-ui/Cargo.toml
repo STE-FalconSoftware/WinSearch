@@ -18,7 +18,7 @@ egui_extras = "0.29"
 open = "5"
 parking_lot = "0.12"
 tray-icon = "0.19"
-global-hotkey = "0.6"
+global-hotkey = "0.8"
 
 [build-dependencies]
 embed-manifest = "1.4"
