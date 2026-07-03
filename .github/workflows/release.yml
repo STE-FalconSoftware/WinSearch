@@ -36,7 +36,7 @@ jobs:
           Compress-Archive -Path dist/* -DestinationPath "WinSearch-$ver-windows-x64.zip" -Force
 
       - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: WinSearch-*.zip
           generate_release_notes: true
