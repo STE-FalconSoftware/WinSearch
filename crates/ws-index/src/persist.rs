@@ -9,7 +9,9 @@ use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::Path;
 
 const MAGIC: &[u8; 4] = b"WSIX";
-const VERSION: u32 = 1;
+// v2: caches written by 0.1.0 contain size 0 for attribute-list files; bumping
+// the version forces those to be rebuilt (and repaired) on first launch of 0.1.1.
+const VERSION: u32 = 2;
 /// Packed on-disk size of one Entry: frn(8)+parent(8)+off(4)+len(2)+attr(4)
 /// +size(8)+mtime(8)+ctime(8).
 const ENTRY_BYTES: usize = 50;
